@@ -10,6 +10,7 @@ from Metric import getBatchMeasure, getMicroMeasure, getMacroMeasure
 import config
 import pickle
 
+USE_CUDA = torch.cuda.is_available()
 
 def get_batches(data, batch_size):
     batches = []
@@ -385,7 +386,8 @@ class Train(object):
 
                 optimizer.step()
 
-                torch.cuda.empty_cache()
+                if USE_CUDA:
+                    torch.cuda.empty_cache()
 
             # Convert model to eval
             self.model.eval()

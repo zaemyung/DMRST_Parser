@@ -6,7 +6,9 @@ from module import EncoderRNN, DecoderRNN, PointerAtten, LabelClassifier, Segmen
 from DataHandler import get_RelationAndNucleus
 from random import randint
 import config
+from utils import get_torch_device
 
+device = get_torch_device()
 
 class ParsingNet(nn.Module):
     def __init__(self, language_model, word_dim=768, hidden_size=768, decoder_input_size=768,
@@ -17,12 +19,12 @@ class ParsingNet(nn.Module):
         '''
         Args:
             batch_size: batch size
-            word_dim: word embedding dimension 
-            hidden_size: hidden size of encoder and decoder 
+            word_dim: word embedding dimension
+            hidden_size: hidden size of encoder and decoder
             decoder_input_size: input dimension of decoder
-            atten_model: pointer attention machanisam, 'Dotproduct' or 'Biaffine' 
-            device: device that our model is running on 
-            classifier_input_size: input dimension of labels classifier 
+            atten_model: pointer attention machanisam, 'Dotproduct' or 'Biaffine'
+            device: device that our model is running on
+            classifier_input_size: input dimension of labels classifier
             classifier_hidden_size: classifier hidden space
             classes_label: relation(label) number, default = 39
             classifier_bias: bilinear bias in classifier, default = True
@@ -55,7 +57,7 @@ class ParsingNet(nn.Module):
         Span_LossFunction = nn.NLLLoss()
 
         Loss_label_batch = 0
-        Loss_tree_batch = torch.FloatTensor([0.0]).cuda()
+        Loss_tree_batch = torch.FloatTensor([0.0]).to(device)
         Loop_label_batch = 0
         Loop_tree_batch = 0
 
@@ -64,7 +66,7 @@ class ParsingNet(nn.Module):
 
             cur_LabelIndex = LabelIndex[i]
             cur_LabelIndex = torch.tensor(cur_LabelIndex)
-            cur_LabelIndex = cur_LabelIndex.cuda()
+            cur_LabelIndex = cur_LabelIndex.to(device)
             cur_ParsingIndex = ParsingIndex[i]
             cur_DecoderInputIndex = DecoderInputIndex[i]
             cur_ParentsIndex = ParentsIndex[i]
@@ -130,7 +132,7 @@ class ParsingNet(nn.Module):
 
                             _, log_atten_weights = self.pointer(cur_EncoderOutputs[stack_head[:-1]], cur_decoder_output.squeeze(0).squeeze(0))
                             cur_ground_index = torch.tensor([int(cur_ParsingIndex[j]) - int(stack_head[0])])
-                            cur_ground_index = cur_ground_index.cuda()
+                            cur_ground_index = cur_ground_index.to(device)
                             Loss_tree_batch = Loss_tree_batch + Span_LossFunction(log_atten_weights, cur_ground_index)
 
                             # Compute Classifier Loss
@@ -194,8 +196,8 @@ class ParsingNet(nn.Module):
         Label_LossFunction = nn.NLLLoss()
         Span_LossFunction = nn.NLLLoss()
 
-        Loss_label_batch = torch.FloatTensor([0.0]).cuda()
-        Loss_tree_batch = torch.FloatTensor([0.0]).cuda()
+        Loss_label_batch = torch.FloatTensor([0.0]).to(device)
+        Loss_tree_batch = torch.FloatTensor([0.0]).to(device)
         Loop_label_batch = 0
         Loop_tree_batch = 0
 
@@ -212,7 +214,7 @@ class ParsingNet(nn.Module):
 
             cur_LabelIndex = LabelIndex[i]
             cur_LabelIndex = torch.tensor(cur_LabelIndex)
-            cur_LabelIndex = cur_LabelIndex.cuda()
+            cur_LabelIndex = cur_LabelIndex.to(device)
             cur_ParsingIndex = ParsingIndex[i]
 
             if len(EDU_breaks[i]) == 1:
@@ -358,7 +360,7 @@ class ParsingNet(nn.Module):
                             temp_ground = stack_head[-2] - stack_head[0]
                         # Compute Tree Loss
                         cur_ground_index = torch.tensor([temp_ground])
-                        cur_ground_index = cur_ground_index.cuda()
+                        cur_ground_index = cur_ground_index.to(device)
 
                         if use_pred_segmentation is False:
                             Loss_tree_batch = Loss_tree_batch + Span_LossFunction(log_atten_weights, cur_ground_index)

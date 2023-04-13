@@ -10,6 +10,7 @@ import time
 from transformers import AutoTokenizer, AutoModel
 import config
 from model_depth import ParsingNet
+from utils import get_torch_device
 
 os.environ["CUDA_VISIBLE_DEVICES"] = str(config.global_gpu_id)
 
@@ -50,7 +51,9 @@ if __name__ == '__main__':
 
     args = parse_args()
     USE_CUDA = torch.cuda.is_available()
-    device = torch.device("cuda:" + str(args.GPUforModel) if USE_CUDA else "cpu")
+    device = get_torch_device()
+    if USE_CUDA:
+        device = torch.device("cuda:" + str(args.GPUforModel))
 
     batch_size = args.batch_size
     hidden_size = args.hidden_size
@@ -85,16 +88,16 @@ if __name__ == '__main__':
         else:
             param.requires_grad = False
 
-    language_model = bert_model.cuda()
+    language_model = bert_model.to(device)
 
-    # Setting random seeds 
+    # Setting random seeds
     torch.manual_seed(seednumber)
     if USE_CUDA:
         torch.cuda.manual_seed_all(seednumber)
     np.random.seed(seednumber)
     random.seed(seednumber)
 
-    # Process bool args       
+    # Process bool args
     if args.classifier_bias == 'True':
         classifier_bias = True
 
@@ -158,7 +161,7 @@ if __name__ == '__main__':
                        hidden_size, atten_model, classifier_input_size, classifier_hidden_size, 42,
                        classifier_bias, rnn_layers, dropout_e, dropout_d, dropout_c, bert_tokenizer=bert_tokenizer)
 
-    model = model.cuda()
+    model = model.to(device)
 
 
     def count_parameters(model):

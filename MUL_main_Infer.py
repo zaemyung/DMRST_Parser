@@ -6,6 +6,7 @@ import os
 import config
 from transformers import AutoTokenizer, AutoModel
 from model_depth import ParsingNet
+from utils import get_torch_device
 
 os.environ["CUDA_VISIBLE_DEVICES"] = str(config.global_gpu_id)
 
@@ -44,6 +45,7 @@ def inference(model, tokenizer, input_sentences, batch_size):
 
 
 if __name__ == '__main__':
+    device = get_torch_device()
 
     args = parse_args()
     model_path = args.ModelPath
@@ -54,15 +56,15 @@ if __name__ == '__main__':
     bert_tokenizer = AutoTokenizer.from_pretrained("xlm-roberta-base", use_fast=True)
     bert_model = AutoModel.from_pretrained("xlm-roberta-base")
 
-    bert_model = bert_model.cuda()
+    bert_model = bert_model.to(device)
 
     for name, param in bert_model.named_parameters():
         param.requires_grad = False
 
     model = ParsingNet(bert_model, bert_tokenizer=bert_tokenizer)
 
-    model = model.cuda()
-    model.load_state_dict(torch.load(model_path))
+    model = model.to(device)
+    model.load_state_dict(torch.load(model_path, map_location=device))
     model = model.eval()
 
     Test_InputSentences = open("./data/text_for_inference.txt").readlines()

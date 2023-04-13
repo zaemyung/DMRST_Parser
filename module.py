@@ -4,7 +4,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import config
 import numpy as np
+from utils import get_torch_device
 
+device = get_torch_device()
 
 class EncoderRNN(nn.Module):
     def __init__(self, language_model, word_dim, hidden_size, rnn_layers, dropout, bert_tokenizer=None, segmenter=None):
@@ -13,8 +15,8 @@ class EncoderRNN(nn.Module):
         '''
         Input:
             [batch,length]
-        Output: 
-            encoder_output: [batch,length,hidden_size]    
+        Output:
+            encoder_output: [batch,length,hidden_size]
             encoder_hidden: [rnn_layers,batch,hidden_size]
         '''
 
@@ -45,14 +47,14 @@ class EncoderRNN(nn.Module):
 
         """ version 3.0 """
         # for segmenter initialization
-        total_edu_loss = torch.FloatTensor([0.0]).cuda()
+        total_edu_loss = torch.FloatTensor([0.0]).to(device)
         predict_edu_breaks_list = []
         tem_outputs = []
 
         """ For averaging the edu level embeddings START """
         for i in range(len(input_sentence)):
             bert_token_ids = [self.bert_tokenizer.convert_tokens_to_ids(input_sentence[i])]
-            bert_token_ids = torch.LongTensor(bert_token_ids).cuda()
+            bert_token_ids = torch.LongTensor(bert_token_ids).to(device)
             # print(bert_token_ids.shape)
 
             """ fixed sliding window for encoding long sequence """
@@ -122,7 +124,7 @@ class EncoderRNN(nn.Module):
             max_edu_break_num = max([len(tmp_l) for tmp_l in predict_edu_breaks_list])
         for output in tem_outputs:
             cur_break_num = output.size(1)
-            all_outputs.append(torch.cat([output, torch.zeros(1, max_edu_break_num - cur_break_num, self.word_dim).cuda()], dim=1))
+            all_outputs.append(torch.cat([output, torch.zeros(1, max_edu_break_num - cur_break_num, self.word_dim).to(device)], dim=1))
 
         res_merged_output = torch.cat(all_outputs, dim=0)
         res_merged_hidden = torch.cat(all_hidden, dim=1)
@@ -132,7 +134,7 @@ class EncoderRNN(nn.Module):
     def GetEDURepresentation(self, input_sentence):
         tmp_max_token_num = len(input_sentence[0])
         bert_token_ids = [self.bert_tokenizer.convert_tokens_to_ids(v) + [5, ] * (tmp_max_token_num - len(v)) for k, v in enumerate(input_sentence)]
-        bert_token_ids = torch.LongTensor(bert_token_ids).cuda()
+        bert_token_ids = torch.LongTensor(bert_token_ids).to(device)
         bert_embeddings = self.language_model(bert_token_ids)
 
         return bert_embeddings[0]
@@ -164,12 +166,12 @@ class PointerAtten(nn.Module):
     def __init__(self, atten_model, hidden_size):
         super(PointerAtten, self).__init__()
 
-        '''       
+        '''
         Input:
             Encoder_outputs: [length,encoder_hidden_size]
-            Current_decoder_output: [decoder_hidden_size] 
-            Attention_model: 'Biaffine' or 'Dotproduct' 
-            
+            Current_decoder_output: [decoder_hidden_size]
+            Attention_model: 'Biaffine' or 'Dotproduct'
+
         Output:
             attention_weights: [1,length]
             log_attention_weights: [1,length]
@@ -210,14 +212,14 @@ class LabelClassifier(nn.Module):
 
         super(LabelClassifier, self).__init__()
         '''
-        
+
         Args:
             input_size: input size
             classifier_hidden_size: project input to classifier space
-            classes_label: corresponding to 39 relations we have. 
+            classes_label: corresponding to 39 relations we have.
                            (e.g. Contrast_NN)
             bias: If set to False, the layer will not learn an additive bias.
-                Default: True               
+                Default: True
 
         Input:
             input_left: [1,input_size]
@@ -225,7 +227,7 @@ class LabelClassifier(nn.Module):
         Output:
             relation_weights: [1,classes_label]
             log_relation_weights: [1,classes_label]
-            
+
         '''
         self.classifier_hidden_size = classifier_hidden_size
         self.labelspace_left = nn.Linear(input_size, classifier_hidden_size, bias=False)
@@ -258,7 +260,7 @@ class LabelClassifier(nn.Module):
         output = (self.weight_bilateral(labelspace_left, labelspace_right) +
                   self.weight_left(labelspace_left) + self.weight_right(labelspace_right))
 
-        # Obtain relation weights and log relation weights (for loss) 
+        # Obtain relation weights and log relation weights (for loss)
         relation_weights = F.softmax(output, 1)
         log_relation_weights = F.log_softmax(output + 1e-6, 1)
 
@@ -284,12 +286,12 @@ class Segmenter_pointer(nn.Module):
         outputs = outputs.squeeze()
         cur_decoder_hidden = outputs[-1, :].unsqueeze(0).unsqueeze(0)
         edu_breaks = [0] + edu_breaks
-        total_loss = torch.FloatTensor([0.0]).cuda()
+        total_loss = torch.FloatTensor([0.0]).to(device)
         for step, start_index in enumerate(edu_breaks[:-1]):
             cur_decoder_output, cur_decoder_hidden = self.decoder(outputs[start_index].unsqueeze(0).unsqueeze(0), last_hidden=cur_decoder_hidden)
 
             _, log_atten_weights = self.pointer(outputs[start_index:], cur_decoder_output.squeeze(0).squeeze(0))
-            cur_ground_index = torch.tensor([edu_breaks[step + 1] - start_index]).cuda()
+            cur_ground_index = torch.tensor([edu_breaks[step + 1] - start_index]).to(device)
             total_loss = total_loss + self.loss_function(log_atten_weights, cur_ground_index)
 
         return total_loss
@@ -324,7 +326,7 @@ class Segmenter(nn.Module):
         self.drop_out = nn.Dropout(p=0.5)
         self.linear = nn.Linear(hidden_size, 2)
         self.linear_start = nn.Linear(hidden_size, 2)
-        self.loss_function = nn.CrossEntropyLoss(weight=torch.Tensor([1.0, 10.0]).cuda())
+        self.loss_function = nn.CrossEntropyLoss(weight=torch.Tensor([1.0, 10.0]).to(device))
 
     def forward(self):
         raise RuntimeError('Segmenter does not have forward process.')
@@ -339,8 +341,8 @@ class Segmenter(nn.Module):
         for i in edu_breaks[:-1]:
             edu_start_target[i + 1] = 1
 
-        edu_break_target = torch.LongTensor(edu_break_target).cuda()
-        edu_start_target = torch.LongTensor(edu_start_target).cuda()
+        edu_break_target = torch.LongTensor(edu_break_target).to(device)
+        edu_start_target = torch.LongTensor(edu_start_target).to(device)
         outputs = self.linear(self.drop_out(word_embeddings))
         start_outputs = self.linear_start(self.drop_out(word_embeddings))
 
