@@ -44,6 +44,26 @@ def inference(model, tokenizer, input_sentences, batch_size):
     return input_sentences, all_segmentation_pred, all_tree_parsing_pred
 
 
+class DiscourseParser:
+    def __init__(self, model_path='depth_mode/Savings/multi_all_checkpoint.torchsave') -> None:
+        self.device = get_torch_device()
+        self.bert_tokenizer = AutoTokenizer.from_pretrained("xlm-roberta-base", use_fast=True)
+        self.bert_model = AutoModel.from_pretrained("xlm-roberta-base")
+        self.bert_model = self.bert_model.to(self.device)
+
+        for name, param in self.bert_model.named_parameters():
+            param.requires_grad = False
+
+        self.model = ParsingNet(self.bert_model, bert_tokenizer=self.bert_tokenizer)
+        self.model = self.model.to(self.device)
+        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+        self.model = self.model.eval()
+
+    def parse(self, input_sentences, batch_size=10):
+        assert isinstance(input_sentences, list)
+        return inference(self.model, self.bert_tokenizer, input_sentences, batch_size)
+
+
 if __name__ == '__main__':
     device = get_torch_device()
 
