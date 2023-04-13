@@ -8,6 +8,8 @@ from transformers import AutoTokenizer, AutoModel
 from model_depth import ParsingNet
 from utils import get_torch_device
 
+from rich.progress import track
+
 os.environ["CUDA_VISIBLE_DEVICES"] = str(config.global_gpu_id)
 
 
@@ -30,7 +32,7 @@ def inference(model, tokenizer, input_sentences, batch_size):
     all_tree_parsing_pred = []
 
     with torch.no_grad():
-        for loop in range(LoopNeeded):
+        for loop in track(range(LoopNeeded), description="Doing batch inference.."):
             StartPosition = loop * batch_size
             EndPosition = (loop + 1) * batch_size
             if EndPosition > len(input_sentences):
