@@ -58,7 +58,7 @@ class DiscourseParser:
 
         self.model = ParsingNet(self.bert_model, bert_tokenizer=self.bert_tokenizer)
         self.model = self.model.to(self.device)
-        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+        self.model.load_state_dict(torch.load(model_path, map_location=self.device), strict=False)
         self.model = self.model.eval()
 
     def parse(self, input_sentences, batch_size=10):
