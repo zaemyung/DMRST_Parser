@@ -2,19 +2,19 @@ import re
 
 
 def getEvalData(sen, edus):
-    b = re.findall(r'\d+', sen)
+    b = re.findall(r"\d+", sen)
     b = [str(edus[int(i) - 1]) for i in b]
     cur_new = []
     x = 0
     while x < len(b):
-        cur_new.append(b[x] + '-' + b[x + 1])
+        cur_new.append(b[x] + "-" + b[x + 1])
         x = x + 2
-    span = re.split(r' ', sen)
+    span = re.split(r" ", sen)
     # print(span)
     dic = {}
     for i in range(len(span)):
         temp = span[i]
-        IDK = re.split(r'[:,=]', temp)
+        IDK = re.split(r"[:,=]", temp)
         Nuclearity1 = IDK[1]
         relation1 = IDK[2]
         Nuclearity2 = IDK[5]
@@ -25,19 +25,19 @@ def getEvalData(sen, edus):
 
 
 def getEvalData_parseval(sen, edus):
-    span_list = re.split(r' ', sen)
+    span_list = re.split(r" ", sen)
     # print(span)
     dic = {}
     for i in range(len(span_list)):
         temp = span_list[i]
-        IDK = re.split(r'[:,=]', temp)
+        IDK = re.split(r"[:,=]", temp)
         nuclearity = IDK[1][0] + IDK[5][0]
         relation1 = IDK[2]
         relation2 = IDK[6]
-        relation = relation1 if relation1 != 'span' else relation2
-        start = str(edus[int(IDK[0].strip('(')) - 1])
-        end = str(edus[int(IDK[-1].strip(')')) - 1])
-        span = start + '-' + end
+        relation = relation1 if relation1 != "span" else relation2
+        start = str(edus[int(IDK[0].strip("(")) - 1])
+        end = str(edus[int(IDK[-1].strip(")")) - 1])
+        span = start + "-" + end
         dic[span] = [relation, nuclearity]
     return dic
 
@@ -75,7 +75,14 @@ def getMeasurement(sen1, sen2, sent1_edus, sent2_edus, use_org_Parseval):
     no_golden = len(dic2.keys())
 
     # return numbers
-    return correct_span, correct_relation, correct_nuclearity, correct_full, no_system, no_golden
+    return (
+        correct_span,
+        correct_relation,
+        correct_nuclearity,
+        correct_full,
+        no_system,
+        no_golden,
+    )
 
 
 def getSegMeasure(pred_seg, gold_seg):
@@ -86,7 +93,13 @@ def getSegMeasure(pred_seg, gold_seg):
     return num_gold, num_pred, correct
 
 
-def getBatchMeasure(Spans_batch, GoldenMetric_batch, predecit_EDU_breaks, EDUBreaks_batch, use_org_Parseval):
+def getBatchMeasure(
+    Spans_batch,
+    GoldenMetric_batch,
+    predecit_EDU_breaks,
+    EDUBreaks_batch,
+    use_org_Parseval,
+):
     correct_span = 0
     correct_relation = 0
     correct_nuclearity = 0
@@ -104,7 +117,6 @@ def getBatchMeasure(Spans_batch, GoldenMetric_batch, predecit_EDU_breaks, EDUBre
     no_golden_batch_list = []
 
     for i in range(len(Spans_batch)):
-
         cur_sent = Spans_batch[i][0]
         cur_golden = GoldenMetric_batch[i][0]
         cur_pred_edus = predecit_EDU_breaks[i]
@@ -116,14 +128,19 @@ def getBatchMeasure(Spans_batch, GoldenMetric_batch, predecit_EDU_breaks, EDUBre
         cur_sysno = 0
         cur_goldenno = 0
 
-        num_gold_seg, num_pred_seg, num_correct_seg = getSegMeasure(cur_pred_edus, cur_gold_edus)
+        num_gold_seg, num_pred_seg, num_correct_seg = getSegMeasure(
+            cur_pred_edus, cur_gold_edus
+        )
         no_gold_seg += num_gold_seg
         no_pred_seg += num_pred_seg
         no_correct_seg += num_correct_seg
 
-        if cur_sent != 'NONE' and cur_golden != 'NONE':
-
-            cur_spanno, cur_relationno, cur_NSno, cur_full, cur_sysno, cur_goldenno = getMeasurement(cur_sent, cur_golden, cur_pred_edus, cur_gold_edus, use_org_Parseval)
+        if cur_sent != "NONE" and cur_golden != "NONE":
+            cur_spanno, cur_relationno, cur_NSno, cur_full, cur_sysno, cur_goldenno = (
+                getMeasurement(
+                    cur_sent, cur_golden, cur_pred_edus, cur_gold_edus, use_org_Parseval
+                )
+            )
 
             correct_span = correct_span + cur_spanno
             correct_relation = correct_relation + cur_relationno
@@ -132,12 +149,16 @@ def getBatchMeasure(Spans_batch, GoldenMetric_batch, predecit_EDU_breaks, EDUBre
             no_system = no_system + cur_sysno
             no_golden = no_golden + cur_goldenno
 
-        elif cur_sent != 'NONE' and cur_golden == 'NONE':
-            _, _, _, _, cur_sysno, _ = getMeasurement(cur_sent, cur_sent, cur_pred_edus, cur_pred_edus, use_org_Parseval)
+        elif cur_sent != "NONE" and cur_golden == "NONE":
+            _, _, _, _, cur_sysno, _ = getMeasurement(
+                cur_sent, cur_sent, cur_pred_edus, cur_pred_edus, use_org_Parseval
+            )
             no_system = no_system + cur_sysno
 
-        elif cur_sent == 'NONE' and cur_golden != 'NONE':
-            _, _, _, _, _, cur_goldenno = getMeasurement(cur_golden, cur_golden, cur_gold_edus, cur_gold_edus, use_org_Parseval)
+        elif cur_sent == "NONE" and cur_golden != "NONE":
+            _, _, _, _, _, cur_goldenno = getMeasurement(
+                cur_golden, cur_golden, cur_gold_edus, cur_gold_edus, use_org_Parseval
+            )
             no_golden = no_golden + cur_goldenno
 
         correct_span_batch_list.append(cur_spanno)
@@ -146,12 +167,33 @@ def getBatchMeasure(Spans_batch, GoldenMetric_batch, predecit_EDU_breaks, EDUBre
         no_system_batch_list.append(cur_sysno)
         no_golden_batch_list.append(cur_goldenno)
 
-    return correct_span, correct_relation, correct_nuclearity, correct_full, no_system, no_golden, \
-           correct_span_batch_list, correct_relation_batch_list, correct_nuclearity_batch_list, \
-           no_system_batch_list, no_golden_batch_list, (no_gold_seg, no_pred_seg, no_correct_seg)
+    return (
+        correct_span,
+        correct_relation,
+        correct_nuclearity,
+        correct_full,
+        no_system,
+        no_golden,
+        correct_span_batch_list,
+        correct_relation_batch_list,
+        correct_nuclearity_batch_list,
+        no_system_batch_list,
+        no_golden_batch_list,
+        (no_gold_seg, no_pred_seg, no_correct_seg),
+    )
 
 
-def getMicroMeasure(correct_span, correct_relation, correct_nuclearity, correct_full, no_system, no_golden, no_gold_seg, no_pred_seg, no_correct_seg):
+def getMicroMeasure(
+    correct_span,
+    correct_relation,
+    correct_nuclearity,
+    correct_full,
+    no_system,
+    no_golden,
+    no_gold_seg,
+    no_pred_seg,
+    no_correct_seg,
+):
     if no_system == 0:
         no_system = 1
     # Computer Micro-average measure
@@ -178,11 +220,22 @@ def getMicroMeasure(correct_span, correct_relation, correct_nuclearity, correct_
     # Full
     F1_Full = (2 * correct_full) / (no_golden + no_system)
 
-    return (Precision_span, Recall_span, F1_span), (Precision_relation, Recall_relation, F1_relation), \
-           (Precision_nuclearity, Recall_nuclearity, F1_nuclearity), F1_Full, (Precision_seg, Recall_seg, F1_seg)
+    return (
+        (Precision_span, Recall_span, F1_span),
+        (Precision_relation, Recall_relation, F1_relation),
+        (Precision_nuclearity, Recall_nuclearity, F1_nuclearity),
+        F1_Full,
+        (Precision_seg, Recall_seg, F1_seg),
+    )
 
 
-def getMacroMeasure(correct_span_list, correct_relation_list, correct_nuclearity_list, no_system_list, no_golden_list):
+def getMacroMeasure(
+    correct_span_list,
+    correct_relation_list,
+    correct_nuclearity_list,
+    no_system_list,
+    no_golden_list,
+):
     # Computer Macro-average measure
 
     F1_span_list = []
@@ -239,8 +292,13 @@ def getMacroMeasure(correct_span_list, correct_relation_list, correct_nuclearity
     Recall_relation_avg = sum(Recall_relation_list) / len(Recall_relation_list)
 
     F1_nuclearity_avg = sum(F1_nuclearity_list) / len(F1_nuclearity_list)
-    Precision_nuclearity_avg = sum(Precision_nuclearity_list) / len(Precision_nuclearity_list)
+    Precision_nuclearity_avg = sum(Precision_nuclearity_list) / len(
+        Precision_nuclearity_list
+    )
     Recall_nuclearity_avg = sum(Recall_nuclearity_list) / len(Recall_nuclearity_list)
 
-    return (Precision_span_avg, Recall_span_avg, F1_span_avg), (Precision_relation_avg, Recall_relation_avg, F1_relation_avg), \
-           (Precision_nuclearity_avg, Recall_nuclearity_avg, F1_nuclearity_avg)
+    return (
+        (Precision_span_avg, Recall_span_avg, F1_span_avg),
+        (Precision_relation_avg, Recall_relation_avg, F1_relation_avg),
+        (Precision_nuclearity_avg, Recall_nuclearity_avg, F1_nuclearity_avg),
+    )

@@ -16,10 +16,17 @@ os.environ["CUDA_VISIBLE_DEVICES"] = str(config.global_gpu_id)
 def parse_args():
     parser = argparse.ArgumentParser()
     """ config the saved checkpoint """
-    parser.add_argument('--ModelPath', type=str, default='depth_mode/Savings/multi_all_checkpoint.torchsave', help='pre-trained model')
+    parser.add_argument(
+        "--ModelPath",
+        type=str,
+        default="depth_mode/Savings/multi_all_checkpoint.torchsave",
+        help="pre-trained model",
+    )
     base_path = config.tree_infer_mode + "_mode/"
-    parser.add_argument('--batch_size', type=int, default=1, help='Batch size')
-    parser.add_argument('--savepath', type=str, default=base_path + './Savings', help='Model save path')
+    parser.add_argument("--batch_size", type=int, default=1, help="Batch size")
+    parser.add_argument(
+        "--savepath", type=str, default=base_path + "./Savings", help="Model save path"
+    )
     args = parser.parse_args()
     return args
 
@@ -27,7 +34,9 @@ def parse_args():
 def inference(model, tokenizer, input_sentences, batch_size):
     LoopNeeded = int(np.ceil(len(input_sentences) / batch_size))
 
-    input_sentences = [tokenizer.tokenize(i, add_special_tokens=False) for i in input_sentences]
+    input_sentences = [
+        tokenizer.tokenize(i, add_special_tokens=False) for i in input_sentences
+    ]
     all_segmentation_pred = []
     all_tree_parsing_pred = []
 
@@ -39,17 +48,27 @@ def inference(model, tokenizer, input_sentences, batch_size):
                 EndPosition = len(input_sentences)
 
             input_sen_batch = input_sentences[StartPosition:EndPosition]
-            _, _, SPAN_batch, _, predict_EDU_breaks = model.TestingLoss(input_sen_batch, input_EDU_breaks=None, LabelIndex=None,
-                                                                        ParsingIndex=None, GenerateTree=True, use_pred_segmentation=True)
+            _, _, SPAN_batch, _, predict_EDU_breaks = model.TestingLoss(
+                input_sen_batch,
+                input_EDU_breaks=None,
+                LabelIndex=None,
+                ParsingIndex=None,
+                GenerateTree=True,
+                use_pred_segmentation=True,
+            )
             all_segmentation_pred.extend(predict_EDU_breaks)
             all_tree_parsing_pred.extend(SPAN_batch)
     return input_sentences, all_segmentation_pred, all_tree_parsing_pred
 
 
 class DiscourseParser:
-    def __init__(self, model_path='depth_mode/Savings/multi_all_checkpoint.torchsave') -> None:
+    def __init__(
+        self, model_path="depth_mode/Savings/multi_all_checkpoint.torchsave"
+    ) -> None:
         self.device = get_torch_device()
-        self.bert_tokenizer = AutoTokenizer.from_pretrained("xlm-roberta-base", use_fast=True)
+        self.bert_tokenizer = AutoTokenizer.from_pretrained(
+            "xlm-roberta-base", use_fast=True
+        )
         self.bert_model = AutoModel.from_pretrained("xlm-roberta-base")
         self.bert_model = self.bert_model.to(self.device)
 
@@ -58,7 +77,9 @@ class DiscourseParser:
 
         self.model = ParsingNet(self.bert_model, bert_tokenizer=self.bert_tokenizer)
         self.model = self.model.to(self.device)
-        self.model.load_state_dict(torch.load(model_path, map_location=self.device), strict=False)
+        self.model.load_state_dict(
+            torch.load(model_path, map_location=self.device), strict=False
+        )
         self.model = self.model.eval()
 
     def parse(self, input_sentences, batch_size=10):
@@ -66,7 +87,7 @@ class DiscourseParser:
         return inference(self.model, self.bert_tokenizer, input_sentences, batch_size)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     device = get_torch_device()
 
     args = parse_args()
@@ -91,7 +112,9 @@ if __name__ == '__main__':
 
     Test_InputSentences = open("./data/text_for_inference.txt").readlines()
 
-    input_sentences, all_segmentation_pred, all_tree_parsing_pred = inference(model, bert_tokenizer, Test_InputSentences, batch_size)
+    input_sentences, all_segmentation_pred, all_tree_parsing_pred = inference(
+        model, bert_tokenizer, Test_InputSentences, batch_size
+    )
     print(input_sentences[0])
     print(all_segmentation_pred[0])
     print(all_tree_parsing_pred[0])

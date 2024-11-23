@@ -18,8 +18,8 @@ The model training and inference scripts were tested on following libraries and 
 * The exampled pre-processed treebank GUM (Zeldes, A., 2017) (English-only) is located at the folder `./depth_mode/pkl_data_for_train/en-gum/`.
 
 ## Training: How to train a model with a pre-processed treebank
-* Run the script `MUL_main_Train.py` to train a model.  
-* Before you start to train, we recommend that you read the parameter settings. 
+* Run the script `MUL_main_Train.py` to train a model.
+* Before you start to train, we recommend that you read the parameter settings.
 * The pre-processed data in folder `./depth_mode/pkl_data_for_train/en-gum/` (English-only) will be used for training by default, as an example.
 * Note that the `XLM-Roberta-base tokenizer` is used in both treebank pre-processing and model training scripts. If you want to use other tokenizers, you should change them accordingly.
 
