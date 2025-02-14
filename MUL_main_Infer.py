@@ -31,7 +31,7 @@ def parse_args():
     return args
 
 
-def inference(model, tokenizer, input_sentences, batch_size):
+def inference(model, tokenizer, input_sentences, batch_size, disable_progressbar=False):
     LoopNeeded = int(np.ceil(len(input_sentences) / batch_size))
 
     input_sentences = [
@@ -41,7 +41,11 @@ def inference(model, tokenizer, input_sentences, batch_size):
     all_tree_parsing_pred = []
 
     with torch.no_grad():
-        for loop in track(range(LoopNeeded), description="Doing batch inference.."):
+        for loop in track(
+            range(LoopNeeded),
+            description="Doing batch inference..",
+            disable=disable_progressbar,
+        ):
             StartPosition = loop * batch_size
             EndPosition = (loop + 1) * batch_size
             if EndPosition > len(input_sentences):
@@ -82,9 +86,15 @@ class DiscourseParser:
         )
         self.model = self.model.eval()
 
-    def parse(self, input_sentences, batch_size=10):
+    def parse(self, input_sentences, batch_size=10, disable_progressbar=False):
         assert isinstance(input_sentences, list)
-        return inference(self.model, self.bert_tokenizer, input_sentences, batch_size)
+        return inference(
+            self.model,
+            self.bert_tokenizer,
+            input_sentences,
+            batch_size,
+            disable_progressbar,
+        )
 
 
 if __name__ == "__main__":
@@ -107,7 +117,7 @@ if __name__ == "__main__":
     model = ParsingNet(bert_model, bert_tokenizer=bert_tokenizer)
 
     model = model.to(device)
-    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.load_state_dict(torch.load(model_path, map_location=device), strict=False)
     model = model.eval()
 
     Test_InputSentences = open("./data/text_for_inference.txt").readlines()
