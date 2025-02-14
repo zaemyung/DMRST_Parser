@@ -6,13 +6,14 @@ import config
 import numpy as np
 from utils import get_torch_device
 
-device = get_torch_device()
+# device = get_torch_device()
 
 
 class EncoderRNN(nn.Module):
     def __init__(
         self,
         language_model,
+        device,
         word_dim,
         hidden_size,
         rnn_layers,
@@ -28,6 +29,7 @@ class EncoderRNN(nn.Module):
             encoder_output: [batch,length,hidden_size]
             encoder_hidden: [rnn_layers,batch,hidden_size]
         """
+        self.device = get_torch_device() if device is None else device
 
         self.rnn_layers = rnn_layers
         self.hidden_size = hidden_size
@@ -63,7 +65,7 @@ class EncoderRNN(nn.Module):
 
         """ version 3.0 """
         # for segmenter initialization
-        total_edu_loss = torch.FloatTensor([0.0]).to(device)
+        total_edu_loss = torch.FloatTensor([0.0]).to(self.device)
         predict_edu_breaks_list = []
         tem_outputs = []
 
@@ -72,7 +74,7 @@ class EncoderRNN(nn.Module):
             bert_token_ids = [
                 self.bert_tokenizer.convert_tokens_to_ids(input_sentence[i])
             ]
-            bert_token_ids = torch.LongTensor(bert_token_ids).to(device)
+            bert_token_ids = torch.LongTensor(bert_token_ids).to(self.device)
             # print(bert_token_ids.shape)
 
             """ fixed sliding window for encoding long sequence """
@@ -186,7 +188,7 @@ class EncoderRNN(nn.Module):
                         output,
                         torch.zeros(
                             1, max_edu_break_num - cur_break_num, self.word_dim
-                        ).to(device),
+                        ).to(self.device),
                     ],
                     dim=1,
                 )
@@ -212,7 +214,7 @@ class EncoderRNN(nn.Module):
             * (tmp_max_token_num - len(v))
             for k, v in enumerate(input_sentence)
         ]
-        bert_token_ids = torch.LongTensor(bert_token_ids).to(device)
+        bert_token_ids = torch.LongTensor(bert_token_ids).to(self.device)
         bert_embeddings = self.language_model(bert_token_ids)
 
         return bert_embeddings[0]
@@ -372,6 +374,7 @@ class Segmenter_pointer(nn.Module):
         decoder_input_size=None,
         rnn_layers=None,
         dropout_d=None,
+        device=None,
     ):
         super(Segmenter_pointer, self).__init__()
 
@@ -389,6 +392,7 @@ class Segmenter_pointer(nn.Module):
             decoder_input_size, hidden_size, rnn_layers, dropout_d
         )
         self.loss_function = nn.NLLLoss()
+        self.device = get_torch_device() if device is None else device
 
     def forward(self):
         raise RuntimeError("Segmenter does not have forward process.")
@@ -398,7 +402,7 @@ class Segmenter_pointer(nn.Module):
         outputs = outputs.squeeze()
         cur_decoder_hidden = outputs[-1, :].unsqueeze(0).unsqueeze(0)
         edu_breaks = [0] + edu_breaks
-        total_loss = torch.FloatTensor([0.0]).to(device)
+        total_loss = torch.FloatTensor([0.0]).to(self.device)
         for step, start_index in enumerate(edu_breaks[:-1]):
             cur_decoder_output, cur_decoder_hidden = self.decoder(
                 outputs[start_index].unsqueeze(0).unsqueeze(0),
@@ -409,7 +413,7 @@ class Segmenter_pointer(nn.Module):
                 outputs[start_index:], cur_decoder_output.squeeze(0).squeeze(0)
             )
             cur_ground_index = torch.tensor([edu_breaks[step + 1] - start_index]).to(
-                device
+                self.device
             )
             total_loss = total_loss + self.loss_function(
                 log_atten_weights, cur_ground_index
@@ -445,15 +449,16 @@ class Segmenter_pointer(nn.Module):
 
 
 class Segmenter(nn.Module):
-    def __init__(self, hidden_size):
+    def __init__(self, hidden_size, device=None):
         super(Segmenter, self).__init__()
 
         self.hidden_size = hidden_size
         self.drop_out = nn.Dropout(p=0.5)
         self.linear = nn.Linear(hidden_size, 2)
         self.linear_start = nn.Linear(hidden_size, 2)
+        self.device = get_torch_device() if device is None else device
         self.loss_function = nn.CrossEntropyLoss(
-            weight=torch.Tensor([1.0, 10.0]).to(device)
+            weight=torch.Tensor([1.0, 10.0]).to(self.device)
         )
 
     def forward(self):
@@ -473,8 +478,8 @@ class Segmenter(nn.Module):
         for i in edu_breaks[:-1]:
             edu_start_target[i + 1] = 1
 
-        edu_break_target = torch.LongTensor(edu_break_target).to(device)
-        edu_start_target = torch.LongTensor(edu_start_target).to(device)
+        edu_break_target = torch.LongTensor(edu_break_target).to(self.device)
+        edu_start_target = torch.LongTensor(edu_start_target).to(self.device)
         outputs = self.linear(self.drop_out(word_embeddings))
         start_outputs = self.linear_start(self.drop_out(word_embeddings))
 

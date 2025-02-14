@@ -8,7 +8,7 @@ from random import randint
 import config
 from utils import get_torch_device
 
-device = get_torch_device()
+# device = get_torch_device()
 
 
 class ParsingNet(nn.Module):
@@ -19,6 +19,7 @@ class ParsingNet(nn.Module):
         hidden_size=768,
         decoder_input_size=768,
         atten_model="Dotproduct",
+        device=None,
         classifier_input_size=768,
         classifier_hidden_size=768,
         classes_label=42,
@@ -53,9 +54,10 @@ class ParsingNet(nn.Module):
         self.classes_label = classes_label
         self.classifier_bias = classifier_bias
         self.rnn_layers = rnn_layers
-        self.segmenter = Segmenter(hidden_size)
+        self.segmenter = Segmenter(hidden_size, device=device)
         self.encoder = EncoderRNN(
             language_model,
+            device,
             word_dim,
             hidden_size,
             config.enc_rnn_layer_num,
@@ -74,6 +76,7 @@ class ParsingNet(nn.Module):
             bias=True,
             dropout=dropout_c,
         )
+        self.device = get_torch_device() if device is None else device
 
     def forward(self):
         raise RuntimeError("Parsing Network does not have forward process.")
@@ -97,7 +100,7 @@ class ParsingNet(nn.Module):
         Span_LossFunction = nn.NLLLoss()
 
         Loss_label_batch = 0
-        Loss_tree_batch = torch.FloatTensor([0.0]).to(device)
+        Loss_tree_batch = torch.FloatTensor([0.0]).to(self.device)
         Loop_label_batch = 0
         Loop_tree_batch = 0
 
@@ -105,7 +108,7 @@ class ParsingNet(nn.Module):
         for i in range(batch_size):
             cur_LabelIndex = LabelIndex[i]
             cur_LabelIndex = torch.tensor(cur_LabelIndex)
-            cur_LabelIndex = cur_LabelIndex.to(device)
+            cur_LabelIndex = cur_LabelIndex.to(self.device)
             cur_ParsingIndex = ParsingIndex[i]
             cur_DecoderInputIndex = DecoderInputIndex[i]
             cur_ParentsIndex = ParentsIndex[i]
@@ -189,7 +192,7 @@ class ParsingNet(nn.Module):
                             cur_ground_index = torch.tensor(
                                 [int(cur_ParsingIndex[j]) - int(stack_head[0])]
                             )
-                            cur_ground_index = cur_ground_index.to(device)
+                            cur_ground_index = cur_ground_index.to(self.device)
                             Loss_tree_batch = Loss_tree_batch + Span_LossFunction(
                                 log_atten_weights, cur_ground_index
                             )
@@ -300,8 +303,8 @@ class ParsingNet(nn.Module):
         Label_LossFunction = nn.NLLLoss()
         Span_LossFunction = nn.NLLLoss()
 
-        Loss_label_batch = torch.FloatTensor([0.0]).to(device)
-        Loss_tree_batch = torch.FloatTensor([0.0]).to(device)
+        Loss_label_batch = torch.FloatTensor([0.0]).to(self.device)
+        Loss_tree_batch = torch.FloatTensor([0.0]).to(self.device)
         Loop_label_batch = 0
         Loop_tree_batch = 0
 
@@ -317,7 +320,7 @@ class ParsingNet(nn.Module):
 
             cur_LabelIndex = LabelIndex[i]
             cur_LabelIndex = torch.tensor(cur_LabelIndex)
-            cur_LabelIndex = cur_LabelIndex.to(device)
+            cur_LabelIndex = cur_LabelIndex.to(self.device)
             cur_ParsingIndex = ParsingIndex[i]
 
             if len(EDU_breaks[i]) == 1:
@@ -524,7 +527,7 @@ class ParsingNet(nn.Module):
                             temp_ground = stack_head[-2] - stack_head[0]
                         # Compute Tree Loss
                         cur_ground_index = torch.tensor([temp_ground])
-                        cur_ground_index = cur_ground_index.to(device)
+                        cur_ground_index = cur_ground_index.to(self.device)
 
                         if use_pred_segmentation is False:
                             Loss_tree_batch = Loss_tree_batch + Span_LossFunction(

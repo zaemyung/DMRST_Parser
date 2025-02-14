@@ -10,7 +10,7 @@ from utils import get_torch_device
 
 from rich.progress import track
 
-os.environ["CUDA_VISIBLE_DEVICES"] = str(config.global_gpu_id)
+# os.environ["CUDA_VISIBLE_DEVICES"] = str(config.global_gpu_id)
 
 
 def parse_args():
@@ -67,9 +67,13 @@ def inference(model, tokenizer, input_sentences, batch_size, disable_progressbar
 
 class DiscourseParser:
     def __init__(
-        self, model_path="depth_mode/Savings/multi_all_checkpoint.torchsave"
+        self,
+        model_path="depth_mode/Savings/multi_all_checkpoint.torchsave",
+        batch_size: int = 10,
+        device: str = None,
     ) -> None:
-        self.device = get_torch_device()
+        self.batch_size = batch_size
+        self.device = device if device is not None else get_torch_device()
         self.bert_tokenizer = AutoTokenizer.from_pretrained(
             "xlm-roberta-base", use_fast=True
         )
@@ -79,20 +83,22 @@ class DiscourseParser:
         for name, param in self.bert_model.named_parameters():
             param.requires_grad = False
 
-        self.model = ParsingNet(self.bert_model, bert_tokenizer=self.bert_tokenizer)
+        self.model = ParsingNet(
+            self.bert_model, bert_tokenizer=self.bert_tokenizer, device=self.device
+        )
         self.model = self.model.to(self.device)
         self.model.load_state_dict(
             torch.load(model_path, map_location=self.device), strict=False
         )
         self.model = self.model.eval()
 
-    def parse(self, input_sentences, batch_size=10, disable_progressbar=False):
+    def parse(self, input_sentences, disable_progressbar=False):
         assert isinstance(input_sentences, list)
         return inference(
             self.model,
             self.bert_tokenizer,
             input_sentences,
-            batch_size,
+            self.batch_size,
             disable_progressbar,
         )
 
